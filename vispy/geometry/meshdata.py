@@ -17,9 +17,10 @@ class MeshData(object):
         Vertex coordinates. If faces is not specified, then this will
         instead be interpreted as (Nf, 3, 3) array of coordinates.
     faces : ndarray, shape (Nf, 3)
+        Indices into the vertex array. Note that if this argument is None,
+        then _all_ other arguments are assumed to be pre-indexed by face.
+    edges : ndarray, shape (Ne, 2)
         Indices into the vertex array.
-    edges : None
-        [not available yet]
     vertex_colors : ndarray, shape (Nv, 4)
         Vertex colors. If faces is not specified, this will be
         interpreted as (Nf, 3, 4) array of colors.
@@ -46,6 +47,67 @@ class MeshData(object):
 
     The class attempts to be as efficient as possible in caching conversion
     results and avoiding unnecessary conversions.
+    
+    
+    Instantiation Examples
+    ----------------------
+    
+    Vertex array with three (x,y,z) points per face::
+    
+        MeshData(vertices=(Nf, 3, 3))
+    
+    Vertex array with accompanying face index::
+    
+        MeshData(vertices=(Nv, 3), faces=(Nf, 3))
+    
+    Vertex array with accompanying face and edge indices::
+        
+        MeshData(vertices=(Nv, 3), faces=(Nf, 3), edges=(Ne, 2))
+
+            
+    Usage Examples
+    --------------
+    
+    With vertices indexed by faces::
+    
+        verts = meshdata.vertexes(indexed='faces')
+        edges = meshdata.edges(indexed='faces')
+        program['a_position'] = VertexBuffer(verts)
+        program.draw(GL_TRIANGLES)
+        program.draw(GL_LINES, index=IndexBuffer(edges))
+
+    With vertices indexed by edges::
+    
+        verts = meshdata.vertexes(indexed='edges')
+        program['a_position'] = VertexBuffer(verts)
+        program.draw(GL_LINES)
+    
+    With unindexed vertices::
+    
+        verts = meshdata.vertexes()
+        faces = meshdata.faces()
+        edges = meshdata.edges()
+        program['a_position'] = VertexBuffer(verts)
+        program.draw(GL_TRIANGLES, index=IndexBuffer(faces))
+        program.draw(GL_LINES, index=IndexBuffer(edges))
+    
+    With per-vertex normals (smooth)::
+    
+        verts = meshdata.vertexes()
+        faces = meshdata.faces()
+        norms = meshdata.vertex_normals()
+        program['a_position'] = VertexBuffer(verts)
+        program['a_normal'] = VertexBuffer(norms)
+        program.draw(GL_TRIANGLES, index=IndexBuffer(faces))
+    
+    With per-face normals (faceted)::
+    
+        verts = meshdata.vertexes(indexed='faces')
+        norms = meshdata.face_normals(indexed='faces')
+        program['a_position'] = VertexBuffer(verts)
+        program['a_normal'] = VertexBuffer(norms)
+        program.draw(GL_TRIANGLES)
+    
     """
 
     def __init__(self, vertices=None, faces=None, edges=None,
@@ -90,6 +152,8 @@ class MeshData(object):
                     self.set_vertex_colors(vertex_colors, indexed='faces')
                 if face_colors is not None:
                     self.set_face_colors(face_colors, indexed='faces')
+                if edges is not None:
+                    self.set_edges(edges, indexed='faces')
             else:
                 self.set_vertices(vertices)
                 self.set_faces(faces)
@@ -97,32 +161,31 @@ class MeshData(object):
                     self.set_vertex_colors(vertex_colors)
                 if face_colors is not None:
                     self.set_face_colors(face_colors)
+                if edges is not None:
+                    self.set_edges(edges)
 
     def faces(self, indexed=None):
-        """Array (Nf, 3) of vertex indices, three per triangular face.
-           "If indexed is 'faces', then return (Nf, 3, 2)
-           array of vertex indices with 3 edges per face,
-           and two vertices per edge.
-
-        If faces have not been computed for this mesh, returns None.
+        """Array of vertex indices with shape (Nfaces, 3). The values are
+        indexes into the array returned by ``self.vertexes()``.
         """
-        if indexed is None:
-            return self._faces
-        elif indexed == 'faces':
-            verts = self.vertices(indexed='faces')
-            if verts is not None:
-                nF = verts.shape[0]
-                faces = np.arange(nF*3, dtype=np.uint)
-                return faces.reshape((nF, 3))
-            else:
-                return None
-        else:
-            raise Exception("Invalid indexing mode. Accepts: None, 'faces'")
-
+        return self._faces
+        
     def edges(self, indexed=None):
-        """Array (Nf, 3) of vertex indices, two per edge in the mesh.
-           If indexed is 'faces', then return (Nf, 3, 2) array of vertex
-           indices with 3 edges per face, and two vertices per edge."""
+        """Array of vertex indices with shape (Nedges, 2). If edges were not
+        provided at instantiation or by calling set_edges(), then they will be
+        computed by generating three edges per face and removing duplicates.
+        
+        Parameters
+        ----------
+        indexed : None or 'faces'
+            * If None, then the array will have shape (Nedges, 2) and its 
+              values are meant to index the vertex array generated by
+              ``self.vertexes()``.
+            * If 'faces', then the array will have shape (Nfaces, 3, 2) and its 
+              values are meant to index the vertex array generated by
+              ``self.vertexes(indexed='faces')``.
+        
+        """
         if indexed is None:
             if self._edges is None:
                 self._compute_edges(indexed=None)
@@ -396,6 +459,8 @@ class MeshData(object):
 
     def _compute_edges(self, indexed=None):
         if indexed is None:
+            # return array that indexes into self.vertexes()
+            # with shape (Ne, 2)
             if self._faces is not None:
                 # generate self._edges from self._faces
                 nf = len(self._faces)
@@ -413,6 +478,8 @@ class MeshData(object):
                 raise Exception("MeshData cannot generate edges--no faces in "
                                 "this data.")
         elif indexed == 'faces':
+            # return array that indexes into self.vertexes(indexed='faces')
+            # with shape (Nf, 3, 2)
             if self._vertices_indexed_by_faces is not None:
                 verts = self._vertices_indexed_by_faces
                 edges = np.empty((verts.shape[0], 3, 2), dtype=np.uint)
