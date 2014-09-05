@@ -8,6 +8,14 @@ from numpy.testing import assert_array_equal, assert_allclose
 from vispy.geometry.meshdata import MeshData
 
 
+def assert_array_set_equal(a, b):
+    """Check the set of rows in a is the same as in b"""
+    a = a.reshape((a.size/a.shape[-1], a.shape[-1]))
+    a = [tuple(x) for x in a]
+    b = b.reshape((b.size/b.shape[-1], b.shape[-1]))
+    b = [tuple(x) for x in b]
+    assert set(a) == set(b)
+
 def test_meshdata():
     """ Test MeshData class
     """
@@ -48,7 +56,9 @@ def test_meshdata():
     assert_allclose(face_normals, mesh.face_normals())
     
     # test edge calculation
-    assert_array_equal(edges, mesh.edges())
+    assert_array_set_equal(edges, mesh.edges())
+    face_edges = mesh.vertices(indexed='edges')
+    assert_array_set_equal(vertices[edges], face_edges)
 
 
     #
@@ -63,12 +73,25 @@ def test_meshdata():
     assert mesh.vertices(indexed='faces') is face_vertices
     assert_array_equal(fv_copy, mesh.vertices(indexed='faces'))
     
-    
-    
     # Test back-conversion to unindexed vertices
-    mesh.vertices()
+    assert_array_equal(mesh.vertices(), vertices)
     
     
+    #
+    # Test edges
+    #
+    face_vertices_flat = face_vertices.reshape((6, 3))
+    edges2 = np.array([[0, 1], [0, 2], [2, 3]],
+                            dtype=np.uint)
+    mesh = MeshData(vertices=face_vertices, edges=edges2)
+    assert mesh.edges(indexed='faces') is edges2
+    assert_array_set_equal(face_vertices_flat[edges2], 
+        mesh.vertices()[mesh.edges()])
+    
+    mesh = MeshData(vertices=vertices, faces=faces, edges=edges2)
+    assert mesh.edges() is edges
+    assert_array_set_equal(vertices[edges2], 
+        mesh.vertices(indexed='faces')[mesh.edges(indexed='faces')])
     
     """
     Edges: what could we reasonably want to do here? 
