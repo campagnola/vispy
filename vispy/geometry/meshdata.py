@@ -461,39 +461,39 @@ class MeshData(object):
         if indexed is None:
             # return array that indexes into self.vertexes()
             # with shape (Ne, 2)
-            if self._faces is not None:
-                # generate self._edges from self._faces
-                nf = len(self._faces)
-                edges = np.empty(nf*3, dtype=[('i', np.uint, 2)])
-                edges['i'][0:nf] = self._faces[:, :2]
-                edges['i'][nf:2*nf] = self._faces[:, 1:3]
-                edges['i'][-nf:, 0] = self._faces[:, 2]
-                edges['i'][-nf:, 1] = self._faces[:, 0]
-                # sort per-edge
-                mask = edges['i'][:, 0] > edges['i'][:, 1]
-                edges['i'][mask] = edges['i'][mask][:, ::-1]
-                # remove duplicate entries
-                self._edges = np.unique(edges)['i']
-            else:
-                raise Exception("MeshData cannot generate edges--no faces in "
-                                "this data.")
+            if self._faces is None:
+                # no face index exists; need to generate from pre-indexed
+                # vertices
+                self._compute_unindexed_vertices()
+            
+            # generate self._edges from self._faces
+            nf = self._faces.shape[0]
+            edges = np.empty((nf*3, 2), dtype=np.uint)
+            edges[0::3] = self._faces[:, :2]
+            edges[1::3] = self._faces[:, 1:3]
+            edges[2::3, 0] = self._faces[:, 2]
+            edges[2::3, 1] = self._faces[:, 0]
+            
+            # sort per-edge and remove duplicate entries
+            edges.sort(axis=1)
+            self._edges = np.unique(edges)['i']
+            
         elif indexed == 'faces':
             # return array that indexes into self.vertexes(indexed='faces')
             # with shape (Nf, 3, 2)
-            if self._vertices_indexed_by_faces is not None:
-                verts = self._vertices_indexed_by_faces
-                edges = np.empty((verts.shape[0], 3, 2), dtype=np.uint)
-                nf = verts.shape[0]
-                edges[:, 0, 0] = np.arange(nf) * 3
-                edges[:, 0, 1] = edges[:, 0, 0] + 1
-                edges[:, 1, 0] = edges[:, 0, 1]
-                edges[:, 1, 1] = edges[:, 1, 0] + 1
-                edges[:, 2, 0] = edges[:, 1, 1]
-                edges[:, 2, 1] = edges[:, 0, 0]
-                self._edges_indexed_by_faces = edges
-            else:
-                raise Exception("MeshData cannot generate edges--no faces in "
-                                "this data.")
+            
+            # Generate face-indexed vertices if these do not exist yet
+            verts = self.vertices(indexed='faces')
+            
+            # generate self._edges from self._vertexes_indexed_by_faces
+            ne = 3 * verts.shape[0]
+            edges = np.empty((ne, 2), dtype=np.uint)
+            edges[:, 0] = np.arange(ne)
+            edges[0::3, 1] = edges[1::3, 0]
+            edges[1::3, 1] = edges[2::3, 0]
+            edges[2::3, 1] = edges[0::3, 0]
+            self._edges = edges
+                
         else:
             raise Exception("Invalid indexing mode. Accepts: None, 'faces'")
 
