@@ -5,6 +5,87 @@
 The vispy.scene namespace provides functionality for higher level
 visuals as well as scenegraph and related classes.
 
+What is a scenegraph?
+=====================
+
+In short, a scenegraph is a data structure used for organizing many graphical 
+objects in a single scene. Scenegraphs are a de-facto standard for implementing 
+graphics across a wide variety of contexts, including 2D and 3D
+illustration software, user interface libraries, games, and the SVG standard. 
+
+All scenegraphs share one central idea in common: a scene is defined
+by a _graph_ of objects; that is, individual objects in the scene are 
+organized as a network of nodes connected by edges. In this graph, each node
+(called an Visual in vispy) represents some part of the scene--a circle, an
+image, a block of text, a tree, etc. 
+
+[figure]
+
+In vispy, Visuals are arranged in a hierarchical structure such that each may 
+have parent and child entities. Children inherit certain properties from their 
+parents, most notably the coordinate system transformations such as scaling, 
+rotation, translation, and others. So for example, moving one Visual in a scene
+will cause all of its children (and grandchildren) to move together, while the
+rest of the scene remains in place. 
+
+[figure]
+
+There are many articles on this topic:
+*
+*
+*
+
+
+Vispy's building blocks: Visuals, Cameras, and Widgets
+======================================================
+
+Perhaps the most central feature vispy provides is its library of Visuals. By
+combining many different types of Visual together, it is possible to create
+complex and beautiful scenes with very little effort.
+
+To begin, we will need a ``SceneCanvas``, which is a special subclass of 
+``Canvas`` that implements much of the infrastructure needed to operate a
+scenegraph::
+
+    from vispy.scene import SceneCanvas
+    canvas = SceneCanvas()
+    
+This canvas comes with its own root Visual ``canvas.scene``. Now to build up a 
+scenegraph, all we need to do is create Visuals and make them children (or
+grandchildren) of ``canvas.scene``::
+
+    from vispy.scene import visuals
+    ellipse = visuals.Ellipse(pos=(100, 100), radius=(100, 50))
+    ellipse.parent = canvas.scene
+
+[figure]
+
+Every time the canvas redraws, it traverses the enire graph of Visuals 
+connected to ``canvas.scene``, calling ``visual.draw()`` for each in order. 
+
+
+
+
+Coordinate systems in OpenGL and vispy
+======================================
+
+* 
+
+
+
+
+
+
+How the vispy scenegraph is organized
+=====================================
+
+
+
+
+
+
+
+
 
 Terminology
 -----------
