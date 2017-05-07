@@ -301,22 +301,22 @@ class Grid(Widget):
 
         for (y, x, ys, xs, widget) in grid_widgets.values():
             for ws in width_grid[y:y+ys]:
-                total_w = np.sum(ws[x:x+xs])
+                total_w = sum(ws[x:x+xs])
 
                 for sw in stretch_widths[y:y+ys]:
                     sw.append((total_w, widget.stretch[0]))
 
             for hs in height_grid[x:x+xs]:
-                total_h = np.sum(hs[y:y+ys])
+                total_h = sum(hs[y:y+ys])
 
                 for sh in stretch_heights[x:x+xs]:
                     sh.append((total_h, widget.stretch[1]))
 
         for (x, xs) in enumerate(widget_grid):
             for(y, widget) in enumerate(xs):
-                    if widget is None:
-                        stretch_widths[y].append((width_grid[y][x], 1))
-                        stretch_heights[x].append((height_grid[x][y], 1))
+                if widget is None:
+                    stretch_widths[y].append((width_grid[y][x], 1))
+                    stretch_heights[x].append((height_grid[x][y], 1))
 
         for sws in stretch_widths:
             if len(sws) <= 1:
@@ -352,11 +352,9 @@ class Grid(Widget):
             for h in hs:
                 solver.add_constraint(h >= 0, strength=REQUIRED)
 
-        for (_, val) in grid_widgets.items():
-            (y, x, ys, xs, widget) = val
-
+        for (y, x, ys, xs, widget) in grid_widgets.values():
             for ws in width_grid[y:y+ys]:
-                total_w = np.sum(ws[x:x+xs])
+                total_w = sum(ws[x:x+xs])
                 # assert(total_w is not None)
                 solver.add_constraint(total_w >= widget.width_min,
                                       strength=REQUIRED)
@@ -368,7 +366,7 @@ class Grid(Widget):
                     solver.add_constraint(total_w <= total_var_w)
 
             for hs in height_grid[x:x+xs]:
-                total_h = np.sum(hs[y:y+ys])
+                total_h = sum(hs[y:y+ys])
                 solver.add_constraint(total_h >= widget.height_min,
                                       strength=REQUIRED)
 
@@ -404,22 +402,22 @@ class Grid(Widget):
                                       for x in range(0, xmax)])
 
         # setup stretch
-        stretch_grid = np.zeros(shape=(xmax, ymax, 2), dtype=float)
-        stretch_grid.fill(1)
+        stretch_grid = np.ones(shape=(xmax, ymax, 2), dtype=float)
 
-        for (_, val) in self._grid_widgets.items():
-            (y, x, ys, xs, widget) = val
+        for (y, x, ys, xs, widget) in self._grid_widgets.values():
             stretch_grid[x:x+xs, y:y+ys] = widget.stretch
 
-        # even though these are REQUIRED, these should never fail
-        # since they're added first, and thus the slack will "simply work".
+        # Force sum of all columns to be total width of grid
+        #   Even though these are REQUIRED, these should never fail
+        #   since they're added first, and thus the slack will "simply work".
         Grid._add_total_width_constraints(self._solver,
                                           self._width_grid, self._var_w)
         Grid._add_total_height_constraints(self._solver,
                                            self._height_grid, self._var_h)
 
+        # Force all widgets in a column to have the same width
         try:
-            # these are REQUIRED constraints for width and height.
+            # These are REQUIRED constraints for width and height.
             # These are the constraints which can fail if
             # the corresponding dimension of the widget cannot be fit in the
             # grid.
@@ -428,16 +426,18 @@ class Grid(Widget):
             Grid._add_gridding_height_constraints(self._solver,
                                                   self._height_grid)
         except RequiredFailure:
-                self._need_solver_recreate = True
+            self._need_solver_recreate = True
 
-        # these are WEAK constraints, so these constraints will never fail
-        # with a RequiredFailure.
+        # Enforce stretch values
+        #   These are WEAK constraints, so these constraints will never fail
+        #   with a RequiredFailure.
         Grid._add_stretch_constraints(self._solver,
                                       self._width_grid,
                                       self._height_grid,
                                       self._grid_widgets,
                                       self._widget_grid)
 
+        # Enforce widget min/max size
         Grid._add_widget_dim_constraints(self._solver,
                                          self._width_grid,
                                          self._height_grid,
@@ -455,8 +455,8 @@ class Grid(Widget):
         if rect.width <= 0 or rect.height <= 0:
             return
         if self._need_solver_recreate:
-            self._need_solver_recreate = False
             self._recreate_solver()
+            self._need_solver_recreate = False
 
         # we only need to remove and add the height and width constraints of
         # the solver if they are not the same as the current value
