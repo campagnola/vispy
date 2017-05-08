@@ -34,6 +34,7 @@ class Grid(Widget):
         self._default_class = ViewBox  # what to add when __getitem__ is used
         self._solver = None
         self._need_solver_recreate = True
+        self._need_child_update = True
 
         # width and height of the Rect used to place child widgets
         self._var_w = Variable("w_rect")
@@ -144,6 +145,7 @@ class Grid(Widget):
         widget.stretch = stretch
 
         self._need_solver_recreate = True
+        self._need_child_update = True
 
         return widget
 
@@ -161,6 +163,7 @@ class Grid(Widget):
                                   if val[-1] != widget)
 
         self._need_solver_recreate = True
+        self._need_child_update = True
 
     def resize_widget(self, widget, row_span, col_span):
         """Resize a widget in the grid to new dimensions.
@@ -191,10 +194,11 @@ class Grid(Widget):
         self.remove_widget(widget)
         self.add_widget(widget, row, col, row_span, col_span)
         self._need_solver_recreate = True
+        self._need_child_update = True
 
     def _prepare_draw(self, view):
-        self._update_child_widget_dim()
-
+        self._update_child_widgets_dim()
+        
     def add_grid(self, row=None, col=None, row_span=1, col_span=1,
                  **kwargs):
         """
@@ -445,7 +449,15 @@ class Grid(Widget):
                                          self._var_h,
                                          self._grid_widgets)
 
-    def _update_child_widget_dim(self):
+    def _update_child_widgets(self):
+        # Called by child widgets when their layout settings have changed
+        self._need_child_update = True
+        self._need_solver_recreate = True
+        
+    def _update_child_widgets_dim(self):
+        if not self._need_child_update:
+            return
+        
         # think in terms of (x, y). (row, col) makes code harder to read
         ymax, xmax = self.grid_size
         if ymax <= 0 or xmax <= 0:
@@ -497,6 +509,8 @@ class Grid(Widget):
 
             widget.size = (width, height)
             widget.pos = (x, y)
+            
+        self._need_child_update = False
 
     @property
     def _widget_grid(self):
