@@ -38,6 +38,7 @@ class PerspectiveCamera(BaseCamera):
         self.fov = fov
         self._scale_factor = None
         self._center = None
+        self._distance = 1.0
 
         # Only set if they are given. They're set during _set_range if None
         if scale_factor is not None:
@@ -167,6 +168,7 @@ class PerspectiveCamera(BaseCamera):
     def _update_projection_transform(self, fx, fy):
         d = self.depth_value
         if self._fov == 0:
+            print("set_ortho:", self, fx, d)
             self._projection.set_ortho(-0.5*fx, 0.5*fx, -0.5*fy, 0.5*fy, 0, d)
         else:
             fov = max(0.01, self._fov)

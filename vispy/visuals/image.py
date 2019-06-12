@@ -238,6 +238,7 @@ class ImageVisual(Visual):
             self._need_vertex_update = True
         self._data = data
         self._need_texture_upload = True
+        self.update()
 
     def view(self):
         v = Visual.view(self)

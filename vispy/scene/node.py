@@ -385,7 +385,7 @@ class Node(object):
         self.transform = create_transform(type_, *args, **kwargs)
 
     def _update_trsys(self, event):
-        """Called when  has changed.
+        """Called when transforms required for this node have changed.
         
         This allows the node and its children to react (notably, VisualNode
         uses this to update its TransformSystem).
@@ -394,6 +394,13 @@ class Node(object):
         another; it is not called if an existing transform internally changes
         its state.
         """
+        doc = self.document_node
+        scene = self.scene_node
+        root = self.root_node
+        self.transforms.visual_transform = self.node_transform(scene)
+        self.transforms.scene_transform = scene.node_transform(doc)
+        self.transforms.document_transform = doc.node_transform(root)
+
         for ch in self.children:
             ch._update_trsys(event)
         self.events.transform_change()
